@@ -1,0 +1,693 @@
+---
+title: "recursion_writeup_2"
+author: "Sam Cheyette"
+date: "February 21, 2018"
+output:
+  pdf_document:
+    fig_caption: yes
+  html_document: default
+  word_document: default
+---
+<style>
+body {
+text-align: justify}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.width=5, fig.height=5,fig.align = "center",cache=TRUE)
+```
+
+
+
+```{r, echo=FALSE, include=FALSE, warning=FALSE, message=FALSE}
+##libraries, globals
+
+library(ggplot2)
+library(reshape)
+library(grid)
+library(dplyr)
+library(magrittr)
+library(gridExtra)
+library(png)
+library(raster)
+library(Hmisc)
+library(HDInterval)
+
+
+paper_theme <- theme(
+                     legend.text=element_text(size = 12),
+                     legend.title=element_blank(),
+                     axis.title.x = element_text(size=0),
+                     axis.text.x=element_text(colour="black", size = 12), 
+                     axis.title.y = element_text(size = 14, vjust = 1),
+                     axis.text.y  = element_text(size = 12),
+                     panel.grid.major = element_blank(), 
+                     panel.grid.minor = element_blank(), 
+                     panel.background = element_blank(),
+                     axis.line.x = element_line(colour = "black"), 
+                     axis.line.y = element_line(colour = "black"))
+
+
+paper_theme2 <- theme(
+                     legend.text=element_text(size = 12),
+                     legend.title=element_blank(),
+                     axis.title.x = element_text(size=0),
+                     axis.text.x=element_text(colour="black", size = 12), 
+                     axis.title.y = element_text(size = 14, vjust = 1),
+                     axis.text.y  = element_text(size = 12),
+                     #panel.grid.major = element_blank(), 
+                    # panel.grid.minor = element_blank(), 
+                     #panel.background = element_blank(),
+                     axis.line.x = element_line(colour = "black"), 
+                     axis.line.y = element_line(colour = "black"))
+
+```
+
+
+```{r, fig.width=5, fig.height=5, echo=FALSE, warning=FALSE, message=FALSE}
+file_beta <- "merged_beta.csv"
+data_beta = read.csv(file_beta)
+data_beta$ID <- seq.int(nrow(data_beta))
+
+
+file_theta <- "merged_theta.csv"
+data_theta = read.csv(file_theta)
+data_theta$ID <- seq.int(nrow(data_theta))
+
+
+data_theta <- data_theta %>%
+        mutate(who=as.factor(gsub("monkeys","Monkeys",as.character(who)))) %>%
+        mutate(who=as.factor(gsub("adults","US adults",as.character(who)))) %>%
+        mutate(who=as.factor(gsub("tsimane","Tsimane'\n adults",as.character(who)))) %>%
+        mutate(who=as.factor(gsub("kids","US kids",as.character(who)))) 
+
+
+data_beta <- data_beta %>%
+        mutate(who=as.factor(gsub("monkeys","Monkeys",as.character(who)))) %>%
+        mutate(who=as.factor(gsub("adults","US adults",as.character(who)))) %>%
+        mutate(who=as.factor(gsub("tsimane","Tsimane'\n adults",as.character(who)))) %>%
+
+        mutate(who=as.factor(gsub("kids","US kids",as.character(who))))
+
+data_theta$who <- factor(data_theta$who, levels=levels(data_theta$who)[c(1,4,2,3)])
+data_beta$who <- factor(data_beta$who, levels=levels(data_beta$who)[c(1,4,2,3)])
+
+data_theta <- data_theta %>%
+            group_by(part) %>%
+        mutate(x_val = as.numeric(who) + runif(1, -0.28,0.22))
+
+data_beta_x <- cbind(data_beta)
+data_theta_x <- cbind(data_theta)
+data_beta_x <- subset(data_beta_x, data_beta_x$which %in% c("[()]",  "([])", "OOMM", "OOMC"))
+data_theta_x <- subset(data_theta_x, (data_theta_x$which %in% c("[()]", "([])", "OOMM", "OOMC")))
+
+
+data_theta_mean <- data_theta %>%
+                    group_by(who, part, which) %>%
+                    mutate(value_min = as.numeric(quantile(value, 0.05)))  %>%
+                    mutate(value_max = as.numeric(quantile(value, 0.95)))  %>%
+                    mutate(value = mean(value)) %>%
+                    top_n(n=1, wt=sample)
+
+data_beta_mean <- data_beta %>%
+                    group_by(who, which) %>%
+                    mutate(value_min = as.numeric(quantile(value, 0.05)))  %>%
+                    mutate(value_max = as.numeric(quantile(value, 0.95)))  %>%
+                    mutate(value = mean(value)) %>%
+                    top_n(n=1, wt=sample)
+
+data_beta_mean_x <- subset(data_beta_mean, data_beta_mean$which %in% c("[()]", "([])", "OOMM", "OOMC"))
+data_theta_mean_x <- subset(data_theta_mean, data_theta_mean$which %in% c("[()]", "([])", "OOMM", "OOMC"))
+
+
+
+
+#data_theta_x$part <- factor(data_theta_x$part)
+#data_theta_x$part <- factor(data_theta_x$part)
+my.labs <- list(expression(Group (beta)),expression(Individual (theta)))
+
+
+fn_summary_thetabeta <- function(x) {
+  med <- median(x)
+  low <- quantile(x, 0.05)
+  high <-quantile(x, 0.95)
+  
+  result=c(med, low, high)
+  names(result)=c('y','ymax', 'ymin')
+  result
+
+}
+
+
+#p.thetabeta <- ggplot() +
+
+   # stat_summary(data=data_theta_x,
+              #     fun.data=fn_summary_thetabeta, aes(x=x_val, y=value, group=part, shape=who, color="Individual"),
+                  #    alpha=0.5, size=0.5) +
+  
+      #stat_summary(data=data_theta_x, 
+                #   fun.data=fn_summary_thetabeta, aes(x=x_val, y=value, group=part, color="Individual"),
+                  #    alpha=0.5, size=0.5, geom="errorbar", width=0.2) +
+  #stat_summary(data=data_beta_x, 
+       #           fun.data=fn_summary_thetabeta, aes(x=as.numeric(who), y=value, shape=who, color="Group"),alpha=0.5) +
+    #stat_summary(data=data_beta_x, 
+             #     fun.data=fn_summary_thetabeta, aes(x=as.numeric(who), y=value, color="Group"), geom="errorbar", alpha=0.9, size=1.2, width=0.2) +
+    #geom_hline(yintercept=0.11, linetype="dashed") +
+    #theme(legend.position=c(0.15,0.85)) +
+   # paper_theme  +
+    #theme(legend.background=element_blank()) +
+    #scale_x_continuous(limits=c(0.5,4.5),
+   # breaks=c(1,2,3,4),labels=levels(m.rec.thetas$who)) + 
+   # scale_shape_discrete(guide=FALSE) +
+    #scale_color_manual(values=c("#b30000","black"), labels=my.labs) +
+  #ylab("p(recursive)")
+
+
+p.thetabeta <- ggplot() +
+
+   
+
+    #geom_violin(data=data_beta_x,draw_quantiles = c(0.05, 0.5, 0.95), 
+                        #          aes(x=as.numeric(who), y=value, color="Group", fill="Group", group=who), alpha=0.35, size=1.15) +
+    stat_summary(data=data_theta_x,
+                   fun.y=median, fun.ymin=median, fun.ymax=median, aes(x=as.numeric(who), y=value, group=part, shape=who, color="Individual"), geom="point",
+                      alpha=0.75, size=2.0, position=position_dodge(width=0.6)) +
+    stat_summary(data=data_beta_x, 
+                 fun.data=fn_summary_thetabeta, aes(x=as.numeric(who), y=value, shape=who, color="Group"),alpha=0.5, size=1.0) +
+
+    stat_summary(data=data_beta_x, 
+                  fun.data=fn_summary_thetabeta, aes(x=as.numeric(who), y=value, color="Group"), geom="errorbar", alpha=0.9, size=0.75, width=0.2) +
+    geom_hline(yintercept=0.075, linetype="dashed") +
+    theme(legend.position=c(0.15,0.85)) +
+    paper_theme  +
+    theme(legend.background=element_blank()) +
+    scale_x_continuous(limits=c(0.5,4.5),
+    breaks=c(1,2,3,4),labels=levels(data_theta_x$who)) + 
+    scale_shape_discrete(guide=FALSE) +
+    scale_fill_discrete(guide=FALSE) +
+
+    scale_color_manual(values=c("#b30000","black"), labels=my.labs) +
+
+  ylab("p(recursive)")
+
+
+p.thetabeta.hist <- ggplot() +
+        geom_histogram(data=data_beta_x, aes(x=value, group=who, fill=who), alpha=0.6, position='stack', bins=15) +
+        facet_wrap(~who, ncol=1) + 
+        geom_vline(xintercept=0.08) +
+        paper_theme
+          
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+file_noise <- "merged_noise.csv"
+data_noise <- read.csv(file_noise)
+
+data_noise <- data_noise %>%
+        mutate(who=as.factor(gsub("monkeys","Monkeys",as.character(who)))) %>%
+        mutate(who=as.factor(gsub("adults","US adults",as.character(who)))) %>%
+        mutate(who=as.factor(gsub("tsimane","Tsimane'\n adults",as.character(who)))) %>%
+
+        mutate(who=as.factor(gsub("kids","US kids",as.character(who)))) %>%
+
+          group_by(part, who, sample) %>%
+             mutate(p_err = 1 - (1 - value * 1.0)**4) 
+         
+
+
+data_noise$who <- factor(data_noise$who, levels=levels(data_noise$who)[c(1,4,2,3)])
+data_noise_bygrp <- data_noise %>%
+                    group_by(who, sample) %>%
+                    mutate(p_err = mean(p_err))  %>%
+                    mutate(value=mean(value)) %>%
+                    top_n(n=1, wt=part)
+                    
+
+
+p.err <- ggplot(data=data_noise_bygrp) +
+        stat_summary(aes(x=who, y=p_err), fun.data=fn_summary_thetabeta, geom="point") +
+
+        stat_summary(aes(x=who, y=p_err), fun.data=fn_summary_thetabeta, geom="bar", size=0.5, color="black", fill="gray", width=1.) +
+        stat_summary(aes(x=who, y=p_err), fun.data=fn_summary_thetabeta, geom="errorbar", width=0.2) +
+
+        paper_theme  + xlab("") + 
+          ylab("p(error)")
+
+#p.err <- ggplot(data=data_noise) +
+     #   stat_summary(aes(x=who, y=p_err), fun.data=fn_summary_thetabeta, geom="point") +
+        #stat_summary(aes(x=who, y=p_err), fun.data=fn_summary_thetabeta, geom="errorbar", width=0.2) +
+
+        #paper_theme  + xlab("") + 
+        #  ylab("p(error)")
+
+
+kids_noise <- subset(data_noise, grepl("kid", data_noise$who))
+kids_noise <- kids_noise %>%
+              group_by(digits) %>%
+              filter(!is.na(digits))
+
+
+
+kids_noise$digits <- as.numeric(as.character(kids_noise$digits))
+
+
+kn_mean <- kids_noise %>%
+          group_by(part) %>%
+          mutate(value=mean(value)) %>%
+          mutate(p_err=mean(p_err)) %>%
+          mutate(digits=mean(digits)) %>%
+          top_n(n=1, wt=sample)
+
+
+
+p.kiddig <- ggplot(data=kn_mean, aes(x=digits, y=p_err)) +
+      #stat_summary_bin(na.rm=TRUE, fun.data="mean_cl_boot") +
+      stat_smooth(data=kn_mean, method="loess",span=1.1,se=FALSE, na.rm=TRUE) +
+      geom_point(aes(x=digits, y=p_err), size=2., alpha=0.9) +
+          paper_theme +
+     xlab("Memory task performance") + ylab("p(error)") +
+      theme(axis.title.x=element_text(size=14)) 
+
+reg.kiddig <- summary(lm(data=kn_mean, p_err ~ digits ))
+
+
+
+
+data_noise_copy <- data_noise %>%
+                    group_by(who, part) %>%
+                    mutate(p_err=mean(p_err)) %>%
+                    top_n(n=1, wt=sample)
+
+
+get_err_p <- function(w, p) {
+  p <- p[1]
+  w <- w[1]
+  df <- subset(data_noise_copy, 
+                (p == data_noise_copy$part) & 
+                 grepl(as.character(w), data_noise_copy$who))
+
+  
+  return(df$p_err[1])
+  
+}
+
+
+data_theta_y <- subset(data_theta, data_theta$which %in% c("[()]",  "([])", "OOMM", "OOMC", "OOCC", "OOCM"))
+
+#data_theta_y$who <- as.character(data_theta_y$who)
+
+
+#data_theta_y$part <- as.character(data_theta_y$part)
+
+ce.counterfactual <- data_theta_y %>%
+                    group_by(who, part) %>%
+                      mutate(p_err=get_err_p(who, as.character(part))) %>%
+
+                      rowwise() %>%
+
+                      mutate(ce = 0.5 * value * (which == "OOCM") +  value * (which != "OOCM")) %>%
+                      mutate(noise="No noise") %>%
+                      ungroup %>%
+                      group_by(who, part, sample) %>%
+                      mutate(increase = sum(ce) * mean(p_err)) %>%
+
+                      mutate(ce=sum(ce)) %>%
+
+                      top_n(n=1,wt=as.numeric(which)) %>%
+                      group_by(who, sample) %>%
+                      mutate(ce=mean(ce)) %>%
+                      mutate(increase=mean(increase)) %>%
+
+                      top_n(n=1, wt=part) #%>%
+                      #mutate(increase = ce - ce * (1-p_err)) %>%
+                      #ungroup
+
+
+ce.true <- data_theta_y %>%
+                    group_by(who, part) %>%
+                      mutate(p_err=get_err_p(who, as.character(part))) %>%
+
+                      rowwise() %>%
+
+                      mutate(ce = 0.5 * value * (which == "OOCM") +  value * (which != "OOCM")) %>%
+
+                      mutate(noise="Noise") %>%
+                      ungroup %>%
+                      group_by(who, part, sample) %>%
+                      mutate(increase = sum(ce) * mean(p_err)) %>%
+                      mutate(ce=sum(ce) * (1 - p_err)) %>%
+                      top_n(n=1,wt=as.numeric(which)) %>%
+                      group_by(who, sample) %>%
+                      mutate(ce=mean(ce)) %>%
+                      mutate(increase=mean(increase)) %>%
+                      top_n(n=1, wt=part) 
+
+#ce.true <- ce.counterfactual %>%
+          #  rowwise() %>%
+           # mutate(ce =  ce * (1 - p_err)) %>%
+          #  mutate(noise="Noise")
+
+ce.both <- rbind(ce.true,ce.counterfactual)
+
+ce.both <- ce.both %>%
+          group_by(who, noise, sample) %>%
+          top_n(n=1, wt=part)
+          
+
+
+#table(ce.counterfactual$part, ce.counterfactual$p_err)
+
+conf_int <- function(x) {
+    return(mean_cl_boot(x, conf.int=0.9999, B=500))
+  
+  
+}
+
+
+p.noise.counterfactual <- ggplot(data=ce.both, aes(x=who, y=ce+0.03, group=noise)) +
+            stat_summary(fun.y="median", geom="bar",position=position_dodge(width=0.91), aes(fill=noise), alpha=0.5, color="black") +
+            stat_summary(fun.y="median", geom="point",position=position_dodge(width=0.91), aes(fill=noise), size=.8) +
+
+              stat_summary(fun.data=fn_summary_thetabeta, geom="errorbar",position=position_dodge(width=0.91), width=0.2) +
+              stat_summary(data=ce.both, fun.data=fn_summary_thetabeta, aes(x=who, y=increase, color="Difference"), alpha=0.6, size=0.25, inherit.aes=FALSE) +
+              stat_summary(data=ce.both, fun.data=fn_summary_thetabeta, aes(x=who, y=increase, color="Difference"),geom="errorbar", 
+                                alpha=0.95, width=0.2, size=1., inherit.aes=FALSE)
+
+              #stat_summary(fun.y=mean, fun.ymin=sd2min,fun.ymax=sd2max,  geom="errorbar",position=position_dodge(width=0.9), width=0.2)
+
+
+
+brk <- seq(0,10)/10.
+
+lwho <- levels(ce.both$who)
+
+p.noise.counterfactual <- p.noise.counterfactual +
+          paper_theme + 
+          ylab("p(center-embedding)") +
+        ylim(0,1)+
+        scale_y_continuous(breaks=brk)+#,expand=c(0.0,0.0)) +
+        scale_x_discrete(labels=lwho) + 
+         scale_fill_manual(values=c("gray", "black"),
+          labels=c("Noisy", "Not noisy")) +
+            theme(legend.position = c(0.17, 0.9)) +
+        theme(element_line(colour="black"), legend.spacing= unit(0.01, 'lines')) +
+        ggtitle("B") + guides(color = guide_legend(order=2),
+         fill = guide_legend(order=1))
+
+
+
+
+tbl_beta <- table(data_beta_mean_x$who, data_beta_mean_x$value)
+tbl_beta_min <- table(data_beta_mean_x$who, data_beta_mean_x$value_min)
+tbl_beta_max <- table(data_beta_mean_x$who, data_beta_mean_x$value_max)
+#p.noise.counterfactual
+#p.kiddig 
+#reg.kiddig
+
+#p.err
+
+data_noise_bygrp_mean <- data_noise_bygrp %>%
+                          group_by(who) %>%
+                          mutate(p_err_high = quantile(p_err, 0.95)) %>%
+                          mutate(p_err_low = quantile(p_err, 0.05)) %>%
+
+                            mutate(p_err= mean(p_err)) %>%
+                            mutate(value_high = quantile(value, 0.95)) %>%
+                          mutate(value_low = quantile(value, 0.05)) %>%
+
+                          mutate(value=mean(value)) %>%
+                          top_n(n=1, wt=sample)
+
+
+reg.kiddig.nonpar <- cor.test(kn_mean$p_err, kn_mean$digits, method="spearman")
+
+
+```
+
+```{r,  echo=FALSE, warning=FALSE, message=FALSE}
+#data_theta_mean_x
+#table(data_theta_mean_x$who)
+
+
+#val_monk <- 0.51
+val_monk <- 0.41
+
+hum_worse <- subset(data_theta_mean_x, (val_monk >= value) & !(grepl("Monkey", data_theta_mean_x$who)) )
+kid_worse <- subset(hum_worse, grepl("kid", hum_worse$who))
+tsim_worse <- subset(hum_worse, grepl("Tsim", hum_worse$who))
+
+
+n_hum_worse <- nrow(hum_worse)
+
+n_hum <- nrow(data_theta_mean_x) - 3
+
+n_kid_worse <- nrow(kid_worse)
+n_tsim_worse <-nrow(tsim_worse)
+
+#n_hum_worse / n_hum
+
+#n_kid_worse / 33
+
+#n_tsim_worse / 21
+
+```
+
+
+
+```{r, cache=FALSE, include=FALSE}
+cap1 <- "Panel 5A (left) displays a plate diagram representation of the Hierarchical Bayesian Model. Panel 5B shows the probability of using a recurisve strategy for each group (red) and each individual in that group (black). Error bars around the group means represent the $95\\%$ credible interval." 
+#cap1 <- paste("a", expression(theta))
+
+#cap2 <- "Panel 6A (left) shows the probability each group made an error implementing their strategy at least once in a trial, according to the results of the Bayesian analysis. Panel 6B shows the probability each group generates center-embedded responses, with noise included in the model (red) and excluded from it (green). The error bars around the means in both panels represent the $95\\%$ credible intervals."
+cap2 <- "a"
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='asis', fig.width=10,fig.height=5, fig.cap=cap1}
+#p.thetabeta
+#img1 <-  rasterGrob(as.raster(readPNG("lda_graph.png")), interpolate = FALSE)
+#x <- grid.arrange(img1, p.thetabeta, ncol=2, top="Figure 5")
+x <- p.thetabeta
+ggsave("figs/fig5.png",x,width=10,height=5)
+
+
+#z <- ![optional caption text](lda_graph.png)
+
+```
+
+
+
+
+
+In order to better understand the observed patterns of responses, we performed a Bayesian data analysis to jointly infer the strategies used by each participant in the task, as well as their noisiness in implementing those strategies (Gelman et al., 2012). We formally defined a strategy as a sequence of task-relevant operations we as modelers specify. On a given trial, the operations in a strategy are called sequentially until that trial is complete. The three primitive operations we defined are *O*, *C*, and *M*. *O* and *C* choose a random open and closed bracket from the screen; *M* searches through memory for the most recent unmatched bracket and then returns the opposing bracket of the same type. For example, the strategy $OOMM$ first chooses an open at random, then another open, then matches the second open, then matches the first open--this strategy correctly outputs only center-embedded recursive sequences. The strategy $OOCC$, on the other hand, is equally likely to generate ([]), ([)], [(]) and [()] since *C* chooses an available "close" at random, regardless of whether it matches the most recent open. We define a *recursive strategy* as one that results in choosing two open brackets and their matching types in order (e.g., $OOMM$).
+
+The strategies allow for biases towards one specific bracket or another as well variable levels of noisiness. For instance $OOMM$ could generate center-embedded structures that are biased to begin with "[" rather than a random open bracket; or it could make mistaken bracket-choices frequently. Not including such biases and noise, the hypothesis space over which inference was performed consisted of all strategies that output 4 brackets. Duplicate strategies --- those that gave identical responses --- were also removed, leaving 12 total strategies. Finally, we considered it likely that many participants used *mixtures* of strategies to produce responses over the course of the task, which would give rise to distributions of responses more complex than that of a single strategy. We deployed a Bayesian inference method to infer what mixture of strategies individuals and populations used.
+
+
+The model was constructed to respect the hierarchical grouping in the data---namely that individuals provide multiple responses and that multiple individuals come from each group (monkeys, US kids, US adults, and Tsimane’ adults). This allows us to determine what unique biases members of each group may have towards certain strategies. This analysis required three group-level latent parameters and three individual latent parameters which were partially pooled within groups. Figure 5A shows the structure of the model with each parameter in plate-diagram format. The three group variables inferred were: $\beta_g$, a mean distribution over strategies; $\alpha_g$, a clustering parameter specifying the homogeneity of the population around the mean distribution; and $\eta_g$, a noise parameter specifying how often mistakes were made in following a strategy. The three variables inferred for participants were: $\theta_p$, a distribution over strategies, dependent on $\alpha_g$ and $\beta_g$; $\nu_p$, a noise parameter dependent on $\eta_g$; and 3) $\gamma_p$, a term capturing bias in choosing one type of bracket over another. The responses $R_p$ of each individual, represented by counts of bracket-choices, are then drawn for each participant.  This model’s structure, treating individuals as mixtures of strategies, is similar to Latent Dirichlet Allocation (Blei, Ng, & Jordan, 2003). We trained this model with with the grdient-based MCMC algorithm NUTS (Hoffman & Gelman, 2011).
+
+Since $\beta_g$ and $\theta_p$ are probability vectors representing the posterior probability over each strategy by each group and participant, it is easy to extract the probability that they were each using a *recursive strategy* in particular. Figure 5B shows the probability that individuals in each group were using a recursive strategy, both at the group-level ($\beta_g$) and for each individual in a group  ($\theta_p$). The prior probability of using a strategy on a given trial was 1/12 ($\approx 0.08$) for each of the 12 strategies. Each group was inferred to be more likely using a recursive strategy than would be a priori expected, as each group's recursive $\beta_g$ was inferred to be very likely greater than 1/12 \footnote{In fact, that the recursive $\beta_g$ is not 0 (or close to 0) can by itself be viewed as evidence that a recursive strategy was used. We used a comparison to the prior here to highlight that there is strong evidence specifically favoring a recursive strategy, as opposed to the case where no strategy has much evidential weight.)} The rank-order of the Maximum A Posteriori (MAP) values for $\beta_g$ rank in order from US adults highest (M=0.83; CI=[0.72, 0.88]), followed by Tsimane’ adults  (M=0.42, CI=[0.28, 0.53]), US kids  (M=0.25; CI=[0.17, 0.33]), and then monkeys (M=0.21; CI=[0.12, 0.33]). The individual MAP $\theta_p$ values, however, tell a more subtle story: the relatively low average recursive strategy use by monkeys ($\beta_g$) is heavily driven by a single monkey who had near-zero probability mass on the correct recursive strategy. This monkey was inferred to have used the strategy $OMOM$ approximately $71\%$ of the time --- generating "tail-recursive" responses instead. However, the monkey inferred to use a recursive strategy most often had a mean recursive $\theta_p$ value of 0.51 (CI=[0.28,0.66]), higher than $59\%$ of human participants ($76\%$ of US kids and $62\%$ of Tsimane’ adults). The monkey with the next-most recursive strategy use is not far behind, with a $\theta_p$ of 0.41 (CI=[0.20,0.59]) --- higher than $53\%$ of human participants.
+
+
+
+**Memory constraints on recursive processing**
+
+```{r, echo=FALSE, message=FALSE,results='asis', fig.width=10,fig.height=5,  fig.cap=cap2}
+grid.arrange(p.err,p.noise.counterfactual, ncol=2,top="Figure 6")
+ggsave("figs/fig6.pdf",x, width=8,height=5)
+
+#mean(subset(ce.true, grepl("Monkey",ce.true$who))$ce) - mean(subset(ce.true, grepl("kid",ce.true$who))$ce)
+#quantile(subset(ce.true, grepl("Monkey",ce.true$who))$ce, 0.95) - quantile(subset(ce.true, grepl("kid",ce.true$who))$ce, 0.95)
+#quantile(subset(ce.true, grepl("Monkey",ce.true$who))$ce, 0.05) - quantile(subset(ce.true, grepl("kid",ce.true$who))$ce, 0.05)
+
+#mean(subset(ce.counterfactual, grepl("Monkey",ce.counterfactual$who))$ce) - mean(subset(ce.counterfactual, grepl("kid",ce.counterfactual$who))$ce)
+#quantile(subset(ce.counterfactual, grepl("Monkey",ce.counterfactual$who))$ce, 0.95) - quantile(subset(ce.counterfactual, grepl("kid",ce.counterfactual$who))$ce, 0.95)
+#quantile(subset(ce.counterfactual, grepl("Monkey",ce.counterfactual$who))$ce, 0.05) - quantile(subset(ce.counterfactual, grepl("kid",ce.counterfactual$who))$ce, 0.05)
+
+#mean(subset(ce.true, grepl("Monkey",ce.true$who))$ce) - mean(subset(ce.true, grepl("Ts",ce.true$who))$ce)
+#mean(subset(ce.counterfactual, grepl("Monkey",ce.counterfactual$who))$ce) - mean(subset(ce.counterfactual, grepl("Ts",ce.counterfactual$who))$ce)
+
+#mean(subset(ce.true, grepl("Monkey",ce.true$who))$ce) - mean(subset(ce.true, grepl("ad",ce.true$who))$ce)
+#mean(subset(ce.counterfactual, grepl("Monkey",ce.counterfactual$who))$ce) - mean(subset(ce.counterfactual, grepl("ad",ce.counterfactual$who))$ce)
+
+```
+
+The Bayesian analysis also revealed large differences between groups in the inferred amount of memory noise. Monkeys were inferred to have the highest levels of memory error, followed by US kids, Tsimane’ adults, and then US adults. These differences are substantial: monkeys had an error rate of 0.075 on any given bracket choice, which corresponds to an error rate of 0.24 over all trials $(CI=[0.19,0.28])$. This is over $80\%$ higher than the error rate of US kids $(M=0.16, CI=[0.12,0.19]$, $140\%$ higher than Tsimane' adults $(M=0.10, CI=[0.07,0.13])$, and $520\%$ higher than US adults $(M=0.04, CI=[0.02,0.05])$. Figure 6A shows the probability that individuals in each group made an error on a given trial.
+
+
+The differing levels of noise between groups can explain some of the difference in their ability to correctly and consistently center-embed. We compared the model’s predictions with and without the noise parameters $\eta_g$ and $\nu_p$ — holding the other inferred parameters constant — to determine the effect of noise on each group’s performance. The results, displayed in Figure 6B., show that monkeys would center-embed with probability 0.41 (CI=[0.35, 0.48]) if they implemented their inferred strategies correctly, compared to their previous rate of 0.26. This is an increase in center-embedding rate of $57\%$, substantially higher than kids ($12\%$), Tsimane' adults ($7\%$) and US adults ($7\%$). The absolute differences in center-embedding between monkeys and the other groups would also diminish. For instance, the difference in rates of center-embedding between monkeys and US kids (removing US kids' errors as well) would drop $47\%$ from 0.17 (CI=[0.14,0.18]) to 0.09  (CI=[0.06,0.13]). 
+
+For US kids, we found that the inferred probability of making an error correlated with their memory performance $(\rho=-0.43; p=0.02)$. Supplementary figure X shows this... [where should this go?].
+
+
+##Supplementary Materials
+
+```{r, echo=FALSE, message=FALSE}
+#captions
+
+scap4 <- "Inferred $\\theta$ values for each participant in each group. Error bars around the group means represent the $95\\%$ credible interval." 
+
+```
+
+**Bayesian model structure**
+
+The Bayesian model was structured hierarchically, with participants partially pooled by their group (monkey, US kids, US adults, Tsimane' adults). 
+The group variables inferred were $\beta_g$, $\alpha_g$, and $\eta_g$. $\beta_g$ is a probability vector over strategies, representing the group mean likelihood of using each strategy, and is drawn from a Dirichlet with a uniform prior. $\alpha_g$ is a clustering parameter specifying how sparse or tightly the participants in a group cluster around their $\beta_g$, and is drawn from an Exponential distribution with parameter 1. $\eta_g$ is a scalar specifying the group-mean noise of implementing strategies, drawn from a Beta distribution with parameters $\alpha=1$, $\beta=9$, specifying a prior towards low levels of noise. This is because it is best to explain differences in responses in terms of strategy selection, and rely on noise to explain differences in the data only if it's necessary (both for explanatory purposes and to prevent over-fitting).
+
+The participant-level variables were $\gamma_p$, $\theta_p$, $\nu_p$, and $R_p$. $\gamma_p$ determines how biased each strategpy was towards starting with a particular open bracket, and is drawn from a uniform Beta distribution ($\alpha=1$, $\beta=1$). We did not determine bias for closed-brackets as well participants across groups almost always picked open-brackets first, and we were most interested in differentiating between center-embedded and crossed responses, both of which start with an open bracket. More specifically $\gamma_p$ the first choice of an open bracket, $\eta$ specifies how likely that bracket is to be of one particular kind, e.g. "[" rather than "(".  $\gamma_p$ is drawn from a Beta distribution with a uniform prior. $\theta_p$ is is a distribution over strategies, drawn from a Dirichlet with prior $\alpha^{T}_{g} \beta_{g}$. 
+
+Given a set of strategies $S$, for each participant $p$ in group $g$, the model in full is below:
+
+\[ \beta_{g} \sim Dirichlet(1) \]
+ \[ \alpha_{g} \sim  Exponential(1) \]
+\[ \eta_{g} \sim Beta(1,9) \]
+\\
+\[\gamma_{p} \sim Beta(1,1)   \]
+\[\theta_{p} \sim Dirichlet(\alpha_{g}^{T} \beta_{g}) \]
+\[\nu_{p} \sim Beta(1-\eta_g, \eta_g)   \]
+
+\[R_{p}\sim Multinomial(F(\theta_{p}^{T} S, \nu_p, \gamma_p)) \]
+
+The function F, used to calculate $R_{p}$, adds noise and bias to the responses of strategies. Noise is added to each strategy's responses by determining every possible response's likelihood of having resulted from following that strategy. More specifically, responses that are more similar (have more overlap) to those that are intentionally output by the strategy are more likely to have been generated by that strategy. We define the distance D between two responses as the total number of places in their output they diverge --- e.g., D=1 for [()] and [()) and D=2 for [()] and [([). The probability that one output was "supposed" to be another output but got corrupted given a distance D and a noise-level $\eta$ is $\eta ^ {D} * (1-\eta)^{4-D}$. These probabilities are factored into each strategy by marginalizing over all the possible response pairs and their distances from the intended responses of a given strategy, re-weighting each based on the corresponding likelihood of corruption. Bias is added into each strategy by up-weighting one open-bracket over another by a factor of $\gamma$. So if $\gamma$ is 0.2, for example, the first time *O* is called, one open bracket is called with probability 0.8 and the other is called with probability 0.2. 
+
+**Bayesian model training**
+
+The Bayesian model was trained using PyMC3 (Salvatier, Wiecki, & Fonnesbeck, 2016), with the default MCMC algorithm NUTS. It was run for 2,000 steps with 500 tuning steps, and a thin of 10. The low number of samples is due to NUTS being a gradient-based MCMC technique, and thus requires many fewer steps to converge than classic MCMC algorithms. We ran two chains to test convergence, which we confirmed using standard diagnostics. $95\%$ credible intervals for parameters were deterermined by taking the smallest range containing $95\%$ of samples.
+
+
+**Bayesian model results**
+
+The full group-level means over strategies, represented by the parameter $\beta_g$, is shown below.
+
+
+```{r,fig.width=9,fig.height=4, echo=FALSE,warning=FALSE,message=FALSE}
+
+
+
+
+data_beta_name <- data_beta %>%
+         group_by(who, which) %>%
+       mutate(ci_95=quantile(value,.05)) %>%
+       mutate(mean_val=mean(value)) %>%
+       mutate(ci_5=quantile(value,.95)) %>%
+       top_n(n=1,wt=sample)%>%
+       ungroup %>%
+            rowwise() %>%
+            mutate(which=gsub("OOMC","OOMM", which)) %>%
+            mutate(which=gsub("OOCM","OOCC", which)) %>%
+            mutate(which=gsub("OMOC","OMOM", which))  %>%
+              mutate(which=gsub("OCOM","OMOC", which))  %>%
+
+        ungroup
+
+ggplot(data=data_beta_name, aes(x=which, y=mean_val, fill=who)) +
+      geom_bar(position=position_dodge(width=0.93), stat='identity',color="black", size=0.5) +
+      geom_errorbar(aes(ymin=ci_5, ymax=ci_95), width=0.2, alpha=0.4,position=position_dodge(width=0.91),color="black") +
+      #stat_summary(fun.data="mean_cl_boot", geom="bar", position="dodge") + 
+      paper_theme + ylab(expression(paste(beta, " value"))) + 
+      ylim(0,1.0)
+```
+
+
+
+The inferred probabilities that individual participants were using each strategy, represented by the parameter $\theta_g$, is shown below.
+
+
+```{r,fig.width=6,fig.height=6, echo=FALSE, message=FALSE, warning=FALSE}
+
+
+data_theta_subs <- data_theta %>%
+            mutate(which=gsub("OOMC","OOMM", which)) %>%
+            mutate(which=gsub("OOCM","OOCC", which)) %>%
+            mutate(which=gsub("OMOC","OMOM", which))  %>%
+              mutate(which=gsub("OCOM","OMOC", which))  %>%
+              mutate(which=gsub("CCOM","CCOO", which))  %>%
+              mutate(which=gsub("COCM","COCO", which))  %>%
+
+              #filter(grepl("OOMM", which) | grepl("OOCC", which) | grepl("OMOM", which))  %>%
+              #filter(grepl("OOMM", which) | grepl("OOCC", which) | grepl("OMOM", which) | )  %>%
+
+              ungroup
+
+#data_theta_subs <- data_theta
+
+
+data_theta_name <- data_theta_subs %>%
+        group_by(who) %>%
+        mutate(part=as.numeric(as.character(part)) + (10**(as.numeric(who) + 1))) %>%
+         group_by(who, which, part) %>%
+       mutate(ci_95=quantile(value,.95)) %>%
+       mutate(mean_val=mean(value)) %>%
+       mutate(ci_5=quantile(value,.05)) %>%
+       top_n(n=1,wt=sample)%>%
+       ungroup 
+
+
+data_theta_name_monk <- subset(data_theta_name, grepl("Ts", who))
+
+
+#ggplot(data=data_theta_name_monk, aes(x=which, y=mean_val, group=part))+
+       # geom_violin(alpha=0.5, scale="width") +
+
+     # geom_jitter(alpha=0.5, width=0.1, height=0) +
+        #geom_errorbar(aes(ymin=ci_5, ymax=ci_95), size=0.2, alpha=0.5, position=position_dodge(width=0.5)) +
+       # paper_theme +
+       # xlab("") + ylab(expression(paste(theta, " value"))) 
+ 
+p.theta.multstrat <- ggplot(data=data_theta_name, aes(x=who, y=mean_val, group=part)) +
+      geom_errorbar(position=position_dodge(width=0.7), aes(ymin=ci_5, ymax=ci_95), alpha=0.3, width=0.0, size=0.8) +
+        geom_point(position=position_dodge(width=0.7),  alpha=0.8, size=0.89, aes(shape=who)) +
+
+       ylab(expression(paste(theta, " value")))  +     
+      scale_shape_discrete(guide=FALSE) +
+        geom_hline(yintercept=0.08, alpha=0.5, linetype="dashed") +
+
+      facet_grid(which~.) + paper_theme2 + theme(axis.text.y=element_text(size=7))
+
+p.theta.multstrat
+
+```
+
+Using a spearman regression, we found a significant correlation between US kids' performance on the memory task and their inferred memory noise from the model $(\rho = -0.43,\ p=0.02)$. A plot of this effect is shown below.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+p.kiddig
+```
+There were differences between the group-level clustering parameter $\alpha$. A higher $\alpha$ value corresponds to individuals in a group more tightly clustering around their group mean --- so having more similar strategies. Adults had the highest $\alpha$ $(M=9.2, CI=[4.5,7.1])$, followed by monkeys $(M=3.9, CI=[2.7,4.8])$ and Tsimane $(M=3.9, CI=[2.9,4.5])$, and then kids $(M=2.9, CI=[2.6,3.1])$. It is intuitive that adults had the highest $\alpha$ --- and thus were most tightly clustered --- considering every adult  was inferred to be using the strategy $OOMM$ with very high probability.
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE, fig.width=7.5, fig.height=4}
+m.alpha <- read.csv("merged_alpha.csv")
+
+m.alpha <- m.alpha %>%
+        mutate(who=as.factor(gsub("monkeys","Monkeys",as.character(who)))) %>%
+        mutate(who=as.factor(gsub("tsimane","Tsimane",as.character(who)))) %>%
+        mutate(who=as.factor(gsub("adults","US Adults",as.character(who)))) %>%
+        mutate(who=as.factor(gsub("kids","US Kids",as.character(who)))) %>%
+            group_by(who) %>%
+           mutate(mean_val=mean(value)) %>%
+            mutate(upper=quantile(value,0.9)) %>%
+            mutate(lower=quantile(value,0.1)) %>%
+            top_n(n=1,wt=sample)
+
+m.alpha$who = factor(m.alpha$who,levels(m.alpha$who)[c(1,4,2,3)])
+m.alpha$who <- as.factor(m.alpha$who)
+
+
+
+p.alpha <- ggplot(data=m.alpha, aes(x=who, y=mean_val)) +
+      geom_bar(stat='identity', width=1., color="black", fill="gray", size=0.5) +
+      geom_errorbar(aes(ymin=lower, ymax=upper, width=0.2)) + 
+     #ylim(0,0.25) +
+     paper_theme + 
+      ylab(expression(paste(alpha, " value")))  
+
+p.alpha
+
+```
+
+
+

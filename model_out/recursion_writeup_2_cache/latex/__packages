@@ -1,0 +1,15 @@
+base
+ggplot2
+reshape
+dplyr
+magrittr
+gridExtra
+png
+sp
+raster
+lattice
+survival
+Formula
+Hmisc
+HDInterval
+bindrcpp
