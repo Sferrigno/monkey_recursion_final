@@ -1,7 +1,7 @@
 ---
-title: "recursion_writeup_2"
+title: "recursion_writeup_3"
 author: "Sam Cheyette"
-date: "February 21, 2018"
+date: "July 9, 2018"
 output:
   pdf_document:
     fig_caption: yes
@@ -457,21 +457,27 @@ n_tsim_worse <-nrow(tsim_worse)
 
 
 
-```{r, cache=FALSE, include=FALSE}
-cap1 <- "Panel 5A (left) displays a plate diagram representation of the Hierarchical Bayesian Model. Panel 5B shows the probability of using a recurisve strategy for each group (red) and each individual in that group (black). Error bars around the group means represent the $95\\%$ credible interval." 
+```{r, echo=FALSE}
+#cap1 <- "Panel 5A (left) displays a plate diagram representation of the Hierarchical Bayesian Model. $\  Panel 5B shows the probability of using a recurisve strategy for each group (red) and each individual in that group (black). Error bars around the group means represent the $95\\%$ credible interval." 
 #cap1 <- paste("a", expression(theta))
 
-#cap2 <- "Panel 6A (left) shows the probability each group made an error implementing their strategy at least once in a trial, according to the results of the Bayesian analysis. Panel 6B shows the probability each group generates center-embedded responses, with noise included in the model (red) and excluded from it (green). The error bars around the means in both panels represent the $95\\%$ credible intervals."
-cap2 <- "a"
+cap1 <- "Panel 5A (left) displays a plate diagram representation of the Hierarchical Bayesian Model. The group-level variables inferred are $\beta_g$, $\alpha_g$, and $\\eta_g$. $\beta_g$ represents the group mean likelihood of using each strategy. $\alpha_g$ specifies how tightly the participants in a group cluster around their $\beta_g$. $\\eta_g$ represents the group-mean noise in implementing strategies. The participant-level variables are $\\gamma_p$, $\theta_p$, and $\nu_p$. $\\gamma_p$ determines how biased each strategpy was towards starting with a particular open bracket. $\theta_p$ represents a participant's likelihood of using each strategy. $\\nu_p$ specifies participants' level of noise in responding.  Panel 5B (right) shows the probability of using a recurisve strategy for each group (red) and each individual in that group (black). Error bars around the group means represent the $95\\%$ credible interval."
+
+cap2 <- "Panel 6A (left) shows the probability each group made an error implementing their strategy at least once in a trial, according to the results of the Bayesian analysis. Panel 6B shows the probability each group generates center-embedded responses, with noise included in the model (light gray bars, left) and excluded from it (dark gray bars, right). The red points represent the difference in center-embedding rates with and without noise for each group (i.e. the difference in the height of the bars). The error bars around the means in both panels represent the $95\\%$ credible intervals."
 ```
 
-
-```{r, echo=FALSE, message=FALSE, warning=FALSE, results='asis', fig.width=10,fig.height=5, fig.cap=cap1}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, cache=FALSE, results='asis', fig.width=10,fig.height=5, fig.cap=cap1}
 #p.thetabeta
-#img1 <-  rasterGrob(as.raster(readPNG("lda_graph.png")), interpolate = FALSE)
-#x <- grid.arrange(img1, p.thetabeta, ncol=2, top="Figure 5")
-x <- p.thetabeta
-ggsave("figs/fig5.png",x,width=10,height=5)
+library(raster)
+library(grid)
+library(gridExtra)
+library(png)
+cap1 <- "Panel 5A (left) displays a plate diagram representation of the Hierarchical Bayesian Model. The group-level variables inferred are $\\beta_g$, $\\alpha_g$, and $\\eta_g$. $\\beta_g$ represents the group mean likelihood of using each strategy; $\\alpha_g$ specifies how tightly the participants in a group cluster around their $\\beta_g$; and $\\eta_g$ represents the group-mean noise in implementing strategies. The participant-level variables are $\\gamma_p$, $\\theta_p$, and $\\nu_p$. $\\gamma_p$ determines how biased each strategy is towards starting with a particular open bracket; $\\theta_p$ represents a participant's likelihood of using each strategy; and $\\nu_p$ specifies participants' level of noise in responding.  Panel 5B (right) shows the probability of using a recurisve strategy for each group (red) and each individual in that group (black). Error bars around the group means represent the $95\\%$ credible interval."
+
+img1 <-  rasterGrob(as.raster(readPNG("lda_graph.png")), interpolate = FALSE)
+x <- grid.arrange(img1, p.thetabeta, ncol=2, top="Figure 5")
+#x <- p.thetabeta
+#ggsave("figs/fig5.png",x,width=10,height=5)
 
 
 #z <- ![optional caption text](lda_graph.png)
@@ -482,9 +488,13 @@ ggsave("figs/fig5.png",x,width=10,height=5)
 
 
 
-In order to better understand the observed patterns of responses, we performed a Bayesian data analysis to jointly infer the strategies used by each participant in the task, as well as their noisiness in implementing those strategies (Gelman et al., 2012). We formally defined a strategy as a sequence of task-relevant operations we as modelers specify. On a given trial, the operations in a strategy are called sequentially until that trial is complete. The three primitive operations we defined are *O*, *C*, and *M*. *O* and *C* choose a random open and closed bracket from the screen; *M* searches through memory for the most recent unmatched bracket and then returns the opposing bracket of the same type. For example, the strategy $OOMM$ first chooses an open at random, then another open, then matches the second open, then matches the first open--this strategy correctly outputs only center-embedded recursive sequences. The strategy $OOCC$, on the other hand, is equally likely to generate ([]), ([)], [(]) and [()] since *C* chooses an available "close" at random, regardless of whether it matches the most recent open. We define a *recursive strategy* as one that results in choosing two open brackets and their matching types in order (e.g., $OOMM$).
+Many responses cannot be classified as center-embedded, tail-recusive, or crossed. Indeed, over $25\%$ of all responses --- and close to half of the monkeys responses --- do not fall cleanly into one of those categories (notice that the bars in Figures 2 and 3 do not add up to 1). The previous analyses ignored these uncategorized responses, primarily using the relative proportion of crossed and center-embedded responses as a guage of a participant's learning. While this is entirely valid for its purpose, it does not account for a large portion of the data, and therefore can neither fully explain the variability of the responses nor precisely determine between-participant and between-group differences. So, to better understand the origins of the entire set of responses, we implemented a model to capture the process by which the responses were generated. More specifically, we performed a Bayesian data analysis to jointly infer the strategies used by each participant in the task to make each responses, as well as their noisiness (e.g. mis-presses, memory error, etc...) in implementing those strategies (Gelman et al., 2012). By modeling the strategies that were used by each participant to respond, we we can more precisely describe what participants learned; and by delineating which choices were *intentional* and *unintentional*, we can determine how they were hindered by mistakes.
 
-The strategies allow for biases towards one specific bracket or another as well variable levels of noisiness. For instance $OOMM$ could generate center-embedded structures that are biased to begin with "[" rather than a random open bracket; or it could make mistaken bracket-choices frequently. Not including such biases and noise, the hypothesis space over which inference was performed consisted of all strategies that output 4 brackets. Duplicate strategies --- those that gave identical responses --- were also removed, leaving 12 total strategies. Finally, we considered it likely that many participants used *mixtures* of strategies to produce responses over the course of the task, which would give rise to distributions of responses more complex than that of a single strategy. We deployed a Bayesian inference method to infer what mixture of strategies individuals and populations used.
+We formally defined a strategy as a sequence of task-relevant operations \footnote{We restricted the number of operations in a strategy to 4, since only responses of length 4 were allowed in the experiment.}. On a given trial, the operations in a strategy are called sequentially until that trial is complete. The three primitive operations we defined are *O*, *C*, and *M*. *O* and *C* choose a random open and closed bracket from the screen; and a variable ($\gamma$) determines how biased each one is towards choosing *specific* open or closed bracket. *M* searches through memory for the most recent unmatched bracket and then returns the opposing bracket of the same type. For example, the strategy $OOMM$ first chooses an open at random, then another open, then matches the second open, then matches the first open---this strategy correctly outputs only center-embedded recursive sequences. The strategy $OOCC$, on the other hand, is equally likely to generate ([]), ([)], [(]) and [()] since *C* chooses an available "close" at random, regardless of whether it matches the most recent open. We define a *recursive strategy* as one that results in choosing two open brackets and their matching types in order (e.g., $OOMM$).
+
+The strategies allow for biases towards one specific bracket or another, as well variable levels of noisiness. For instance, $OOMM$ could generate center-embedded structures that are biased to begin with "[" rather than a random open bracket; or it could make mistaken bracket-choices frequently. A participant's "noisiness" refers to the probability that they make a choice inconsistent with the strategy they meant to use on a given trial. This means that for some incorrect responses, such as ([]], the participants have actually intended a correct center-embedded response, such as $([])$. Though note that the converse is true as well: some center-embedded responses may have been an accident.  By jointly fitting the participants' intentions, noisiness, and bias together, the model can provide a more complete account of the full range of responses allowing us to more precisely determine what participants have actually learned.
+
+Not including such biases and noise, the hypothesis space over which inference was performed consisted of all strategies that output 4 brackets. Duplicate strategies --- those that gave identical responses --- were also removed, leaving 12 total strategies. Finally, we considered it likely that many participants used *mixtures* of strategies to produce responses over the course of the task, which would give rise to distributions of responses more complex than that of a single strategy. We deployed a Bayesian inference method to infer what mixture of strategies individuals and populations used.
 
 
 The model was constructed to respect the hierarchical grouping in the data---namely that individuals provide multiple responses and that multiple individuals come from each group (monkeys, US kids, US adults, and Tsimane’ adults). This allows us to determine what unique biases members of each group may have towards certain strategies. This analysis required three group-level latent parameters and three individual latent parameters which were partially pooled within groups. Figure 5A shows the structure of the model with each parameter in plate-diagram format. The three group variables inferred were: $\beta_g$, a mean distribution over strategies; $\alpha_g$, a clustering parameter specifying the homogeneity of the population around the mean distribution; and $\eta_g$, a noise parameter specifying how often mistakes were made in following a strategy. The three variables inferred for participants were: $\theta_p$, a distribution over strategies, dependent on $\alpha_g$ and $\beta_g$; $\nu_p$, a noise parameter dependent on $\eta_g$; and 3) $\gamma_p$, a term capturing bias in choosing one type of bracket over another. The responses $R_p$ of each individual, represented by counts of bracket-choices, are then drawn for each participant.  This model’s structure, treating individuals as mixtures of strategies, is similar to Latent Dirichlet Allocation (Blei, Ng, & Jordan, 2003). We trained this model with with the grdient-based MCMC algorithm NUTS (Hoffman & Gelman, 2011).
@@ -496,6 +506,8 @@ Since $\beta_g$ and $\theta_p$ are probability vectors representing the posterio
 **Memory constraints on recursive processing**
 
 ```{r, echo=FALSE, message=FALSE,results='asis', fig.width=10,fig.height=5,  fig.cap=cap2}
+
+
 grid.arrange(p.err,p.noise.counterfactual, ncol=2,top="Figure 6")
 ggsave("figs/fig6.pdf",x, width=8,height=5)
 
@@ -514,13 +526,21 @@ ggsave("figs/fig6.pdf",x, width=8,height=5)
 #mean(subset(ce.counterfactual, grepl("Monkey",ce.counterfactual$who))$ce) - mean(subset(ce.counterfactual, grepl("ad",ce.counterfactual$who))$ce)
 
 ```
+The participant-level noise parameter $\nu_p$ in the Bayesian model specifies the probability
+that any given bracket-choice a participant made was unintended. The group-level noise parameter, $\eta_g$, specifies the probability of making a mistake aggregating over all participants in a group. We made the simplifying
+assumptions that 1) a mistake changes the intended bracket to one of the other three brackets at
+random; and 2) that each mistake is independent of other mistakes. This noise-model is not
+designed to account for every possible source of error separately, of which there are many (e.g.
+inattention, memory failure, mis-presses, etc...); rather, it was designed to be a general catch for
+responses that were unlikely to have been generated intentionally, without respect to their exact
+causes.
 
-The Bayesian analysis also revealed large differences between groups in the inferred amount of memory noise. Monkeys were inferred to have the highest levels of memory error, followed by US kids, Tsimane’ adults, and then US adults. These differences are substantial: monkeys had an error rate of 0.075 on any given bracket choice, which corresponds to an error rate of 0.24 over all trials $(CI=[0.19,0.28])$. This is over $80\%$ higher than the error rate of US kids $(M=0.16, CI=[0.12,0.19]$, $140\%$ higher than Tsimane' adults $(M=0.10, CI=[0.07,0.13])$, and $520\%$ higher than US adults $(M=0.04, CI=[0.02,0.05])$. Figure 6A shows the probability that individuals in each group made an error on a given trial.
+The Bayesian analysis revealed large differences between groups in the inferred amount of noise. Monkeys were inferred to have the highest levels of error, followed by US kids, Tsimane’ adults, and then US adults. These differences are substantial: monkeys had an error rate of 0.075 on any given bracket choice, which corresponds to an error rate of 0.24 over all trials $(CI=[0.19,0.28])$. This is over $80\%$ higher than the error rate of US kids $(M=0.16, CI=[0.12,0.19]$, $140\%$ higher than Tsimane' adults $(M=0.10, CI=[0.07,0.13])$, and $520\%$ higher than US adults $(M=0.04, CI=[0.02,0.05])$. Figure 6A shows the probability that individuals in each group made an error on a given trial. 
 
 
 The differing levels of noise between groups can explain some of the difference in their ability to correctly and consistently center-embed. We compared the model’s predictions with and without the noise parameters $\eta_g$ and $\nu_p$ — holding the other inferred parameters constant — to determine the effect of noise on each group’s performance. The results, displayed in Figure 6B., show that monkeys would center-embed with probability 0.41 (CI=[0.35, 0.48]) if they implemented their inferred strategies correctly, compared to their previous rate of 0.26. This is an increase in center-embedding rate of $57\%$, substantially higher than kids ($12\%$), Tsimane' adults ($7\%$) and US adults ($7\%$). The absolute differences in center-embedding between monkeys and the other groups would also diminish. For instance, the difference in rates of center-embedding between monkeys and US kids (removing US kids' errors as well) would drop $47\%$ from 0.17 (CI=[0.14,0.18]) to 0.09  (CI=[0.06,0.13]). 
 
-For US kids, we found that the inferred probability of making an error correlated with their memory performance $(\rho=-0.43; p=0.02)$. Supplementary figure X shows this... [where should this go?].
+Additionally, in US children we found that the inferred probability of making an error correlated with their memory performance $(\rho=-0.43; p=0.02;$ see Figure S4).
 
 
 ##Supplementary Materials
@@ -560,7 +580,7 @@ The Bayesian model was trained using PyMC3 (Salvatier, Wiecki, & Fonnesbeck, 201
 
 **Bayesian model results**
 
-The full group-level means over strategies, represented by the parameter $\beta_g$, is shown below.
+The full group-level means over strategies, represented by the parameter $\beta_g$, is shown in figure S2.
 
 
 ```{r,fig.width=9,fig.height=4, echo=FALSE,warning=FALSE,message=FALSE}
@@ -593,7 +613,7 @@ ggplot(data=data_beta_name, aes(x=which, y=mean_val, fill=who)) +
 
 
 
-The inferred probabilities that individual participants were using each strategy, represented by the parameter $\theta_g$, is shown below.
+The inferred probabilities that individual participants were using each strategy, represented by the parameter $\theta_g$, is shown in Figure S3.
 
 
 ```{r,fig.width=6,fig.height=6, echo=FALSE, message=FALSE, warning=FALSE}
