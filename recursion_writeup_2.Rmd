@@ -428,11 +428,7 @@ reg.kiddig.nonpar <- cor.test(kn_mean$p_err, kn_mean$digits, method="spearman")
 ```
 
 ```{r,  echo=FALSE, warning=FALSE, message=FALSE}
-#data_theta_mean_x
-#table(data_theta_mean_x$who)
 
-
-#val_monk <- 0.51
 val_monk <- 0.41
 
 hum_worse <- subset(data_theta_mean_x, (val_monk >= value) & !(grepl("Monkey", data_theta_mean_x$who)) )
@@ -689,8 +685,8 @@ m.alpha <- m.alpha %>%
         mutate(who=as.factor(gsub("kids","US Kids",as.character(who)))) %>%
             group_by(who) %>%
            mutate(mean_val=mean(value)) %>%
-            mutate(upper=quantile(value,0.9)) %>%
-            mutate(lower=quantile(value,0.1)) %>%
+            mutate(upper=quantile(value,0.95)) %>%
+            mutate(lower=quantile(value,0.05)) %>%
             top_n(n=1,wt=sample)
 
 m.alpha$who = factor(m.alpha$who,levels(m.alpha$who)[c(1,4,2,3)])
