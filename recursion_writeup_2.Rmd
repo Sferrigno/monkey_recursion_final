@@ -64,13 +64,16 @@ paper_theme2 <- theme(
 ```
 
 
+
+
+
 ```{r, fig.width=5, fig.height=5, echo=FALSE, warning=FALSE, message=FALSE}
-file_beta <- "merged_beta.csv"
+file_beta <- "merged_data/merged_beta.csv"
 data_beta = read.csv(file_beta)
 data_beta$ID <- seq.int(nrow(data_beta))
 
 
-file_theta <- "merged_theta.csv"
+file_theta <- "merged_data/merged_theta.csv"
 data_theta = read.csv(file_theta)
 data_theta$ID <- seq.int(nrow(data_theta))
 
@@ -129,8 +132,8 @@ my.labs <- list(expression(Group (beta)),expression(Individual (theta)))
 
 fn_summary_thetabeta <- function(x) {
   med <- median(x)
-  low <- quantile(x, 0.05)
-  high <-quantile(x, 0.95)
+  low <- quantile(x, 0.025)
+  high <-quantile(x, 0.975)
   
   result=c(med, low, high)
   names(result)=c('y','ymax', 'ymin')
@@ -139,28 +142,6 @@ fn_summary_thetabeta <- function(x) {
 }
 
 
-#p.thetabeta <- ggplot() +
-
-   # stat_summary(data=data_theta_x,
-              #     fun.data=fn_summary_thetabeta, aes(x=x_val, y=value, group=part, shape=who, color="Individual"),
-                  #    alpha=0.5, size=0.5) +
-  
-      #stat_summary(data=data_theta_x, 
-                #   fun.data=fn_summary_thetabeta, aes(x=x_val, y=value, group=part, color="Individual"),
-                  #    alpha=0.5, size=0.5, geom="errorbar", width=0.2) +
-  #stat_summary(data=data_beta_x, 
-       #           fun.data=fn_summary_thetabeta, aes(x=as.numeric(who), y=value, shape=who, color="Group"),alpha=0.5) +
-    #stat_summary(data=data_beta_x, 
-             #     fun.data=fn_summary_thetabeta, aes(x=as.numeric(who), y=value, color="Group"), geom="errorbar", alpha=0.9, size=1.2, width=0.2) +
-    #geom_hline(yintercept=0.11, linetype="dashed") +
-    #theme(legend.position=c(0.15,0.85)) +
-   # paper_theme  +
-    #theme(legend.background=element_blank()) +
-    #scale_x_continuous(limits=c(0.5,4.5),
-   # breaks=c(1,2,3,4),labels=levels(m.rec.thetas$who)) + 
-   # scale_shape_discrete(guide=FALSE) +
-    #scale_color_manual(values=c("#b30000","black"), labels=my.labs) +
-  #ylab("p(recursive)")
 
 
 p.thetabeta <- ggplot() +
@@ -171,12 +152,13 @@ p.thetabeta <- ggplot() +
                         #          aes(x=as.numeric(who), y=value, color="Group", fill="Group", group=who), alpha=0.35, size=1.15) +
     stat_summary(data=data_theta_x,
                    fun.y=median, fun.ymin=median, fun.ymax=median, aes(x=as.numeric(who), y=value, group=part, shape=who, color="Individual"), geom="point",
-                      alpha=0.75, size=2.0, position=position_dodge(width=0.6)) +
+                      alpha=0.75, size=2.5, position=position_dodge(width=0.45)) +
     stat_summary(data=data_beta_x, 
-                 fun.data=fn_summary_thetabeta, aes(x=as.numeric(who), y=value, shape=who, color="Group"),alpha=0.5, size=1.0) +
+                 fun.data=fn_summary_thetabeta, aes(x=as.numeric(who), y=value, shape=who, color="Group"),alpha=0.5, size=1.25) +
 
     stat_summary(data=data_beta_x, 
-                  fun.data=fn_summary_thetabeta, aes(x=as.numeric(who), y=value, color="Group"), geom="errorbar", alpha=0.9, size=0.75, width=0.2) +
+                  fun.data=fn_summary_thetabeta, aes(x=as.numeric(who), y=value, color="Group"), 
+                 geom="errorbar", alpha=0.9, size=0.5, width=0.2) +
     geom_hline(yintercept=0.075, linetype="dashed") +
     theme(legend.position=c(0.15,0.85)) +
     paper_theme  +
@@ -196,14 +178,16 @@ p.thetabeta.hist <- ggplot() +
         facet_wrap(~who, ncol=1) + 
         geom_vline(xintercept=0.08) +
         paper_theme
-          
 
+#p.thetabeta
+#ggsave("figs/fig5_2.png", width=8,height=5, dpi=400)
+#ggsave("figs/fig5_2.pdf", width=8,height=5)
 ```
 
 
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-file_noise <- "merged_noise.csv"
+file_noise <- "merged_data/merged_noise.csv"
 data_noise <- read.csv(file_noise)
 
 data_noise <- data_noise %>%
@@ -213,7 +197,7 @@ data_noise <- data_noise %>%
 
         mutate(who=as.factor(gsub("kids","US kids",as.character(who)))) %>%
 
-          group_by(part, who, sample) %>%
+         # group_by(part, who, sample) %>%
              mutate(p_err = 1 - (1 - value * 1.0)**4) 
          
 
@@ -271,7 +255,7 @@ p.kiddig <- ggplot(data=kn_mean, aes(x=digits, y=p_err)) +
      xlab("Memory task performance") + ylab("p(error)") +
       theme(axis.title.x=element_text(size=14)) 
 
-reg.kiddig <- summary(lm(data=kn_mean, p_err ~ digits ))
+#reg.kiddig <- summary(lm(data=kn_mean, p_err ~ digits ))
 
 
 
@@ -308,7 +292,7 @@ ce.counterfactual <- data_theta_y %>%
 
                       rowwise() %>%
 
-                      mutate(ce = 0.5 * value * (which == "OOCM") +  value * (which != "OOCM")) %>%
+                      mutate(ce = 0.5 * value * (which == "OOCC") +  value * (which == "OOMM")) %>%
                       mutate(noise="No noise") %>%
                       ungroup %>%
                       group_by(who, part, sample) %>%
@@ -332,7 +316,7 @@ ce.true <- data_theta_y %>%
 
                       rowwise() %>%
 
-                      mutate(ce = 0.5 * value * (which == "OOCM") +  value * (which != "OOCM")) %>%
+                      mutate(ce = 0.5 * value * (which == "OOCC") +  value * (which == "OOMM")) %>%
 
                       mutate(noise="Noise") %>%
                       ungroup %>%
@@ -367,7 +351,7 @@ conf_int <- function(x) {
 }
 
 
-p.noise.counterfactual <- ggplot(data=ce.both, aes(x=who, y=ce+0.03, group=noise)) +
+p.noise.counterfactual <- ggplot(data=ce.both, aes(x=who, y=ce, group=noise)) +
             stat_summary(fun.y="median", geom="bar",position=position_dodge(width=0.91), aes(fill=noise), alpha=0.5, color="black") +
             stat_summary(fun.y="median", geom="point",position=position_dodge(width=0.91), aes(fill=noise), size=.8) +
 
@@ -392,9 +376,10 @@ p.noise.counterfactual <- p.noise.counterfactual +
         scale_x_discrete(labels=lwho) + 
          scale_fill_manual(values=c("gray", "black"),
           labels=c("Noisy", "Not noisy")) +
-            theme(legend.position = c(0.17, 0.9)) +
+            theme(legend.position = c(0.17, 0.8)) +
         theme(element_line(colour="black"), legend.spacing= unit(0.01, 'lines')) +
-        ggtitle("B") + guides(color = guide_legend(order=2),
+      #  ggtitle("B") +
+        guides(color = guide_legend(order=2),
          fill = guide_legend(order=1))
 
 
@@ -403,11 +388,13 @@ p.noise.counterfactual <- p.noise.counterfactual +
 tbl_beta <- table(data_beta_mean_x$who, data_beta_mean_x$value)
 tbl_beta_min <- table(data_beta_mean_x$who, data_beta_mean_x$value_min)
 tbl_beta_max <- table(data_beta_mean_x$who, data_beta_mean_x$value_max)
-#p.noise.counterfactual
+p.noise.counterfactual
+ggsave("figs/noise_counterfactual.pdf", width=4.5,height=4)
 #p.kiddig 
 #reg.kiddig
 
-#p.err
+p.err
+ggsave("figs/noise.pdf",width=4.5,height=4)
 
 data_noise_bygrp_mean <- data_noise_bygrp %>%
                           group_by(who) %>%
@@ -424,12 +411,16 @@ data_noise_bygrp_mean <- data_noise_bygrp %>%
 
 reg.kiddig.nonpar <- cor.test(kn_mean$p_err, kn_mean$digits, method="spearman")
 
-
+reg.kiddig.nonpar
 ```
 
 ```{r,  echo=FALSE, warning=FALSE, message=FALSE}
+#data_theta_mean_x
+#table(data_theta_mean_x$who)
 
-val_monk <- 0.41
+
+val_monk <- 0.48
+#val_monk <- 0.41
 
 hum_worse <- subset(data_theta_mean_x, (val_monk >= value) & !(grepl("Monkey", data_theta_mean_x$who)) )
 kid_worse <- subset(hum_worse, grepl("kid", hum_worse$who))
@@ -438,16 +429,21 @@ tsim_worse <- subset(hum_worse, grepl("Tsim", hum_worse$who))
 
 n_hum_worse <- nrow(hum_worse)
 
-n_hum <- nrow(data_theta_mean_x) - 3
+n_hum <- nrow(data_theta_mean_x) -3
 
 n_kid_worse <- nrow(kid_worse)
 n_tsim_worse <-nrow(tsim_worse)
+n_kid <- nrow(subset(data_theta_mean_x, grepl("kid", data_theta_mean_x$who)))
+n_tsim <- nrow(subset(data_theta_mean_x, grepl("Tsimane", data_theta_mean_x$who)))
 
-#n_hum_worse / n_hum
+n_hum_worse / n_hum
 
-#n_kid_worse / 33
+n_kid_worse / n_kid
 
-#n_tsim_worse / 21
+n_tsim_worse / n_tsim
+
+
+(n_kid_worse + n_tsim_worse)/ (n_kid+n_tsim)
 
 ```
 
@@ -470,13 +466,13 @@ library(gridExtra)
 library(png)
 cap1 <- "Panel 5A (left) displays a plate diagram representation of the Hierarchical Bayesian Model. The group-level variables inferred are $\\beta_g$, $\\alpha_g$, and $\\eta_g$. $\\beta_g$ represents the group mean likelihood of using each strategy; $\\alpha_g$ specifies how tightly the participants in a group cluster around their $\\beta_g$; and $\\eta_g$ represents the group-mean noise in implementing strategies. The participant-level variables are $\\gamma_p$, $\\theta_p$, and $\\nu_p$. $\\gamma_p$ determines how biased each strategy is towards starting with a particular open bracket; $\\theta_p$ represents a participant's likelihood of using each strategy; and $\\nu_p$ specifies participants' level of noise in responding.  Panel 5B (right) shows the probability of using a recurisve strategy for each group (red) and each individual in that group (black). Error bars around the group means represent the $95\\%$ credible interval."
 
-img1 <-  rasterGrob(as.raster(readPNG("lda_graph.png")), interpolate = FALSE)
+img1 <-  rasterGrob(as.raster(readPNG("figs/lda_graph.png")), interpolate = FALSE)
 x <- grid.arrange(img1, p.thetabeta, ncol=2, top="Figure 5")
-#x <- p.thetabeta
-#ggsave("figs/fig5.png",x,width=10,height=5)
 
+#p.thetabeta
+#ggsave("figs/fig5_2.png", width=9,height=5)
+#ggsave("figs/fig5_2.pdf", width=9,height=5)
 
-#z <- ![optional caption text](lda_graph.png)
 
 ```
 
@@ -520,6 +516,20 @@ ggsave("figs/fig6.pdf",x, width=8,height=5)
 
 #mean(subset(ce.true, grepl("Monkey",ce.true$who))$ce) - mean(subset(ce.true, grepl("ad",ce.true$who))$ce)
 #mean(subset(ce.counterfactual, grepl("Monkey",ce.counterfactual$who))$ce) - mean(subset(ce.counterfactual, grepl("ad",ce.counterfactual$who))$ce)
+
+ce.counterfactual.av <- ce.counterfactual %>%
+                        group_by(who) %>%
+                          mutate(ce_low = quantile(ce,0.05)) %>%
+                          mutate(ce_high = quantile(ce,0.95)) %>%
+                        mutate(ce = mean(ce)) %>%
+
+                        mutate(value=mean(value)) %>%
+                       top_n(n=1,wt=sample)
+
+ce.true.av <- ce.true %>%
+                        group_by(who) %>%
+                        mutate(ce = mean(ce)) %>%
+                       top_n(n=1,wt=sample)
 
 ```
 The participant-level noise parameter $\nu_p$ in the Bayesian model specifies the probability
@@ -579,7 +589,7 @@ The Bayesian model was trained using PyMC3 (Salvatier, Wiecki, & Fonnesbeck, 201
 The full group-level means over strategies, represented by the parameter $\beta_g$, is shown in figure S2.
 
 
-```{r,fig.width=9,fig.height=4, echo=FALSE,warning=FALSE,message=FALSE}
+```{r,fig.width=8,fig.height=4, echo=FALSE,warning=FALSE,message=FALSE}
 
 
 
@@ -600,11 +610,17 @@ data_beta_name <- data_beta %>%
         ungroup
 
 ggplot(data=data_beta_name, aes(x=which, y=mean_val, fill=who)) +
+      geom_point(position=position_dodge(width=0.93),size=1) +
       geom_bar(position=position_dodge(width=0.93), stat='identity',color="black", size=0.5) +
       geom_errorbar(aes(ymin=ci_5, ymax=ci_95), width=0.2, alpha=0.4,position=position_dodge(width=0.91),color="black") +
       #stat_summary(fun.data="mean_cl_boot", geom="bar", position="dodge") + 
       paper_theme + ylab(expression(paste(beta, " value"))) + 
-      ylim(0,1.0)
+      geom_hline(linetype="dashed", yintercept=0.08) +
+      theme(legend.position=c(0.15,0.8)) +
+      ylim(0,1.0) + scale_fill_discrete(labels=c("Monkeys", "US kids", "Tsimane' adults", "US adults"))
+
+
+ggsave("figs/all_beta.pdf",width=8,height=4)
 ```
 
 
@@ -665,6 +681,9 @@ p.theta.multstrat <- ggplot(data=data_theta_name, aes(x=who, y=mean_val, group=p
 
 p.theta.multstrat
 
+
+ggsave("figs/all_theta.pdf", width=6,height=6)
+
 ```
 
 Using a spearman regression, we found a significant correlation between US kids' performance on the memory task and their inferred memory noise from the model $(\rho = -0.43,\ p=0.02)$. A plot of this effect is shown below.
@@ -672,11 +691,13 @@ Using a spearman regression, we found a significant correlation between US kids'
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 
 p.kiddig
+
+ggsave("figs/kid_error.pdf", width=5,height=4)
 ```
 There were differences between the group-level clustering parameter $\alpha$. A higher $\alpha$ value corresponds to individuals in a group more tightly clustering around their group mean --- so having more similar strategies. Adults had the highest $\alpha$ $(M=9.2, CI=[4.5,7.1])$, followed by monkeys $(M=3.9, CI=[2.7,4.8])$ and Tsimane $(M=3.9, CI=[2.9,4.5])$, and then kids $(M=2.9, CI=[2.6,3.1])$. It is intuitive that adults had the highest $\alpha$ --- and thus were most tightly clustered --- considering every adult  was inferred to be using the strategy $OOMM$ with very high probability.
 
-```{r, message=FALSE, echo=FALSE, warning=FALSE, fig.width=7.5, fig.height=4}
-m.alpha <- read.csv("merged_alpha.csv")
+```{r, message=FALSE, echo=FALSE, warning=FALSE, fig.width=5, fig.height=4}
+m.alpha <- read.csv("merged_data/merged_alpha.csv")
 
 m.alpha <- m.alpha %>%
         mutate(who=as.factor(gsub("monkeys","Monkeys",as.character(who)))) %>%
@@ -695,6 +716,7 @@ m.alpha$who <- as.factor(m.alpha$who)
 
 
 p.alpha <- ggplot(data=m.alpha, aes(x=who, y=mean_val)) +
+      geom_point() +
       geom_bar(stat='identity', width=1., color="black", fill="gray", size=0.5) +
       geom_errorbar(aes(ymin=lower, ymax=upper, width=0.2)) + 
      #ylim(0,0.25) +
@@ -703,7 +725,123 @@ p.alpha <- ggplot(data=m.alpha, aes(x=who, y=mean_val)) +
 
 p.alpha
 
+ggsave("figs/alpha.pdf", width=5,height=4)
+
 ```
 
+
+```{r, fig.width=8,fig.height=4}
+
+monkey_beta_other <- read.csv("other_monkey_merged/merged_beta.csv")
+monkey_theta_other <- read.csv("other_monkey_merged/merged_theta.csv")
+
+monkey_noise_other <- read.csv("other_monkey_merged/merged_noise.csv")
+
+monkey_beta_other <- monkey_beta_other %>%
+                    group_by(who, which) %>%
+                    mutate(value_high = quantile(value, 0.95)) %>%
+                    mutate(value_low = quantile(value, 0.05)) %>%
+
+                    mutate(value = mean(value)) %>%
+                    top_n(n=1,wt=sample)
+
+
+monkey_noise_other <- monkey_noise_other %>%
+                    group_by(who, part) %>%
+                    mutate(value_high = quantile(value, 0.95)) %>%
+                    mutate(value_low = quantile(value, 0.05)) %>%
+
+                    mutate(value = mean(value)) %>%
+                    top_n(n=1,wt=sample) %>%
+                    mutate(p_ce = (1-(1-value)**4)) %>%
+                    mutate(p_ce_high = (1-(1-value_high)**4)) %>%
+                    mutate(p_ce_low = (1-(1-value_low)**4)) 
+
+
+
+
+monkey_theta_other <- monkey_theta_other  %>%
+                    group_by(who, part, which) %>%
+                    mutate(value_high = quantile(value, 0.95)) %>%
+                    mutate(value_low = quantile(value, 0.05)) %>%
+
+                    mutate(value = mean(value)) %>%
+                    top_n(n=1,wt=sample)
+
+
+
+
+```
+
+
+```{r, fig.width=8,fig.height=4}
+p.monkey1 <- ggplot(data=subset(monkey_beta_other, grepl("monkeys1", monkey_beta_other$who)), aes(x=which, y=value)) +
+            geom_point() +
+
+          geom_col(color="black", fill="gray", width=1.0,size=0.5) +
+          geom_errorbar(aes(ymin=value_low, ymax=value_high), width=0.2, alpha=0.6) +
+          paper_theme +
+        geom_hline(yintercept=1/12., alpha=0.5, linetype="dashed") +
+            ylab(expression(paste(beta, " value"))) +
+          ylim(0,0.6)
+
+
+p.monkey3 <- ggplot(data=subset(monkey_beta_other, grepl("monkeys3", monkey_beta_other$who)), aes(x=which, y=value)) +
+            geom_point() +
+
+          geom_col(color="black", fill="gray", width=1.0,size=0.5) +
+          geom_errorbar(aes(ymin=value_low, ymax=value_high), width=0.2, alpha=0.6) +
+          paper_theme +
+        geom_hline(yintercept=1/12., alpha=0.5, linetype="dashed") +
+            ylab(expression(paste(beta, " value"))) +
+          ylim(0,0.6)
+
+
+p.monkey1
+
+ggsave("figs/s6.pdf", width=8,height=4)
+
+p.monkey3
+ggsave("figs/s7.pdf",width=8,height=4)
+
+monkey_beta_other <- monkey_beta_other %>%
+                ungroup %>%
+                mutate(who2=who) %>%
+                mutate(who2 = gsub("monkeys1","1",who2)) %>%
+                mutate(who2 = gsub("monkeys3","3",who2)) %>%
+                mutate(who2 = gsub("monkeys","2",who2))
+
+monkey_beta_other$who2 <- factor(monkey_beta_other$who2)
+
+monkey_theta_other <- monkey_theta_other %>%
+                ungroup %>%
+                mutate(who2=who) %>%
+
+                mutate(who2 = gsub("monkeys1","1",who2)) %>%
+                mutate(who2 = gsub("monkeys3","3",who2)) %>%
+                mutate(who2 = gsub("monkeys","2",who2))
+
+monkey_theta_other$who2 <- factor(monkey_theta_other$who2)
+
+
+p.m1 <- ggplot(data=subset(monkey_beta_other, grepl("OO[MC][MC]",monkey_beta_other$which)), 
+       aes(x=who, y=value, color=which)) +
+        geom_point()
+
+p.m2 <- ggplot() +
+        geom_col(data=subset(monkey_beta_other, grepl("OOMM",monkey_beta_other$which)), 
+       aes(x=who, y=value, fill="Group", color="Group")) +
+        geom_point(data=subset(monkey_theta_other, grepl("OOMM",monkey_theta_other$which)), 
+       aes(x=who2, y=value, fill="Individual", color="Individual")) +
+      scale_color_manual(values=c("#b30000","black"), labels=my.labs) +
+      scale_fill_manual(values=c("#b30000","black"), labels=my.labs)+   guides(color=FALSE) +
+      paper_theme
+
+
+subs <- monkey_beta_other %>%
+        filter(grepl("OO[MC][MC]", which) | grepl("OMOM", which))
+
+
+```
 
 
